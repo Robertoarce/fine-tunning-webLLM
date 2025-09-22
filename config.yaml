@@ -1,0 +1,66 @@
+# Fine-tuning Configuration for Roberto Arce Model
+
+# Model Configuration
+model:
+  name: "distilgpt2"  # or "gpt2", "gpt2-medium", "gpt2-large"
+  max_length: 512
+  fp16: true
+  load_in_8bit: false  # Enable 8-bit quantization for memory efficiency
+  load_in_4bit: false  # Enable 4-bit quantization for even more memory efficiency
+
+# LoRA Configuration
+lora:
+  enabled: true
+  r: 16  # Rank of adaptation
+  lora_alpha: 32  # LoRA scaling parameter
+  target_modules: ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]  # Modules to apply LoRA to
+  lora_dropout: 0.1
+  bias: "none"  # Bias type: "none", "all", "lora_only"
+  task_type: "CAUSAL_LM"
+
+# Data Configuration
+data:
+  file_path: "roberto_data.txt"
+  train_split: 0.9
+  validation_split: 0.1
+
+# Training Configuration
+training:
+  num_epochs: 5
+  batch_size: 8
+  learning_rate: 5e-5
+  weight_decay: 0.01
+  warmup_steps: 100
+  gradient_accumulation_steps: 2
+  
+  # Evaluation
+  eval_steps: 200
+  save_steps: 200
+  logging_steps: 50
+  
+  # Early stopping
+  early_stopping_patience: 3
+  load_best_model_at_end: true
+  
+  # Memory optimization
+  dataloader_num_workers: 4
+  dataloader_pin_memory: true
+
+# Output Configuration
+output:
+  base_dir: "./finetuned_roberto"
+  save_total_limit: 3
+  include_timestamp: true
+
+# Logging and Monitoring
+logging:
+  level: "INFO"
+  use_wandb: false
+  wandb_project: "roberto-finetuning"
+
+# Generation Configuration (for testing)
+generation:
+  max_length: 100
+  temperature: 0.0
+  do_sample: false
+  num_return_sequences: 1
