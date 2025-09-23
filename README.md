@@ -1,4 +1,4 @@
-# Roberto Arce Fine-tuning Project
+#Fine-tuning Project
 
 This project fine-tunes a GPT-2 model on Roberto Arce's professional data to create a personalized language model that can generate text in his style and about his expertise.
 
