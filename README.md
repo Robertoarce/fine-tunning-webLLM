@@ -24,13 +24,7 @@ This project fine-tunes a GPT-2 model on my professional data to create a person
    python fine-tunning.py
    ```
 
-3. **Run advanced fine-tuning (recommended):**
-
-   ```bash
-   python fine_tuning_advanced.py
-   ```
-
-4. **Run LoRA fine-tuning (memory efficient):**
+3. **Run LoRA fine-tuning (memory efficient):**
    ```bash
    python fine_tuning_lora.py
    ```
