@@ -55,7 +55,7 @@ output:
 # Logging and Monitoring
 logging:
   level: "INFO"
-  use_wandb: false
+  use_wandb: true
   wandb_project: "roberto-finetuning"
 
 # Generation Configuration (for testing)
@@ -64,3 +64,4 @@ generation:
   temperature: 0.0
   do_sample: false
   num_return_sequences: 1
+
