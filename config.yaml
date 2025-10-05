@@ -2,7 +2,7 @@
 
 # Model Configuration
 model:
-  name: "distilgpt2"  # or "gpt2", "gpt2-medium", "gpt2-large"
+  name: "gpt2"  # or  distilgpt2 "gpt2", "gpt2-medium", "gpt2-large"
   max_length: 512
   fp16: false  # Set to false for Mac/CPU (only true for NVIDIA GPU)
   load_in_8bit: false  # Enable 8-bit quantization for memory efficiency
@@ -30,12 +30,12 @@ data:
 
 # Training Configuration
 training:
-  num_epochs: 5
-  batch_size: 8
-  learning_rate: 5e-5
+  num_epochs: 30  # Start with 30 (test), then increase if good
+  batch_size: 4  # Reduced for larger gpt2 model
+  learning_rate: 2e-5  # Lower for stable training
   weight_decay: 0.01
-  warmup_steps: 100
-  gradient_accumulation_steps: 2
+  warmup_steps: 50  # Reduced warmup
+  gradient_accumulation_steps: 4  # Increased to compensate for smaller batch
   
   # Evaluation
   eval_steps: 200
