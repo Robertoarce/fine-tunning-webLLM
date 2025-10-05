@@ -1,0 +1,4 @@
+raft_training_data.jsonl
+wandb/*
+__pycache__/*
+.env

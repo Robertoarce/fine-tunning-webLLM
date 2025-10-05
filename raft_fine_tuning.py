@@ -8,6 +8,7 @@ import json
 import torch
 import logging
 import yaml
+import weave
 from datetime import datetime
 from typing import Dict, List
 from pathlib import Path
@@ -28,6 +29,9 @@ import wandb
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize Weave project tracking
+weave.init('roberto_arce_/RAFT')
+
 
 class RAFTTrainer:
     """RAFT Fine-tuning trainer"""
@@ -40,6 +44,7 @@ class RAFTTrainer:
         self.train_dataset = None
         self.val_dataset = None
         
+    @weave.op()
     def load_config(self, config_path: str) -> Dict:
         """Load configuration from YAML file"""
         logger.info(f"Loading configuration from {config_path}")
@@ -47,6 +52,7 @@ class RAFTTrainer:
             config = yaml.safe_load(f)
         return config
     
+    @weave.op()
     def setup_model_and_tokenizer(self):
         """Initialize model and tokenizer"""
         model_name = self.config['model']['name']
@@ -63,7 +69,7 @@ class RAFTTrainer:
         }
         
         if torch.cuda.is_available():
-            model_kwargs['device_map'] = "auto"
+            model_kwargs['device_map'] = {"": 0}
         
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
@@ -72,9 +78,14 @@ class RAFTTrainer:
         
         # Resize token embeddings
         self.model.resize_token_embeddings(len(self.tokenizer))
+
+        # Ensure model is on GPU if available
+        if torch.cuda.is_available():
+            self.model = self.model.to('cuda')
         
         logger.info("Model and tokenizer loaded successfully")
     
+    @weave.op()
     def load_raft_data(self, data_path: str) -> List[Dict]:
         """Load RAFT training data from JSONL file"""
         logger.info(f"Loading RAFT data from {data_path}")
@@ -87,6 +98,7 @@ class RAFTTrainer:
         logger.info(f"Loaded {len(data)} training examples")
         return data
     
+    @weave.op()
     def format_raft_example(self, example: Dict) -> str:
         """
         Format a RAFT example into a training string
@@ -98,6 +110,7 @@ class RAFTTrainer:
         formatted = f"{example['instruction']}\n{example['output']}{self.tokenizer.eos_token}"
         return formatted
     
+    @weave.op()
     def prepare_datasets(self, data_path: str = "raft_training_data.jsonl"):
         """Prepare training and validation datasets"""
         logger.info("Preparing RAFT datasets...")
@@ -143,6 +156,7 @@ class RAFTTrainer:
         logger.info("\nExample training instance:")
         logger.info(formatted_texts[0][:500] + "...")
     
+    @weave.op()
     def setup_training_args(self) -> tuple:
         """Setup training arguments"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -150,38 +164,66 @@ class RAFTTrainer:
         
         training_config = self.config['training']
         
+        # get values and force them to the correct type
+        num_train_epochs = float(training_config['num_epochs'])
+        per_device_train_batch_size = int(training_config['batch_size'])
+        per_device_eval_batch_size = int(training_config['batch_size'])
+        gradient_accumulation_steps = int(training_config['gradient_accumulation_steps'])
+        learning_rate = float(training_config['learning_rate'])
+        weight_decay = float(training_config['weight_decay'])
+        warmup_steps = int(training_config['warmup_steps'])
+        logging_steps = int(training_config['logging_steps'])
+        eval_steps = int(training_config['eval_steps'])
+        save_steps = int(training_config['save_steps'])
+        save_total_limit = int(self.config['output']['save_total_limit'])
+        dataloader_pin_memory = bool(training_config['dataloader_pin_memory'])
+        dataloader_num_workers = int(training_config['dataloader_num_workers'])
+        fp16 = bool(self.config['model']['fp16'])
+
+        logger.info(
+            f"Training args types -> epochs:{type(num_train_epochs)}, bs:{type(per_device_train_batch_size)}, lr:{type(learning_rate)}, "
+            f"eval_steps:{type(eval_steps)}, save_steps:{type(save_steps)}, warmup:{type(warmup_steps)}"
+        )
+
+
         training_args = TrainingArguments(
             output_dir=output_dir,
             overwrite_output_dir=True,
-            num_train_epochs=training_config['num_epochs'],
-            per_device_train_batch_size=training_config['batch_size'],
-            per_device_eval_batch_size=training_config['batch_size'],
-            gradient_accumulation_steps=training_config['gradient_accumulation_steps'],
-            learning_rate=training_config['learning_rate'],
-            weight_decay=training_config['weight_decay'],
-            warmup_steps=training_config['warmup_steps'],
-            fp16=self.config['model']['fp16'],
-            logging_steps=training_config['logging_steps'],
-            eval_steps=training_config['eval_steps'],
-            save_steps=training_config['save_steps'],
-            evaluation_strategy="steps",
+            num_train_epochs=num_train_epochs,
+            per_device_train_batch_size=per_device_train_batch_size,
+            per_device_eval_batch_size=per_device_eval_batch_size,
+            gradient_accumulation_steps=gradient_accumulation_steps,
+            learning_rate=learning_rate,
+            weight_decay=weight_decay,
+            warmup_steps=warmup_steps,
+            fp16=fp16,
+            logging_steps=logging_steps,
+            eval_steps=eval_steps,
+            save_steps=save_steps,
+            eval_strategy="steps",
             save_strategy="steps",
             load_best_model_at_end=training_config['load_best_model_at_end'],
             metric_for_best_model="eval_loss",
             greater_is_better=False,
-            save_total_limit=self.config['output']['save_total_limit'],
+            save_total_limit=save_total_limit,
             prediction_loss_only=True,
             remove_unused_columns=True,
-            dataloader_pin_memory=training_config['dataloader_pin_memory'],
-            dataloader_num_workers=training_config['dataloader_num_workers'],
+            dataloader_pin_memory=dataloader_pin_memory,
+            dataloader_num_workers=dataloader_num_workers,
             report_to="wandb" if self.config['logging']['use_wandb'] else "none",
         )
         
         return training_args, output_dir
     
+    @weave.op()
     def train(self):
         """Execute RAFT fine-tuning"""
         logger.info("Starting RAFT fine-tuning process...")
+        
+        # Config option to allow CPU
+        allow_cpu = bool(self.config.get('hardware', {}).get('allow_CPU', False))
+        if not torch.cuda.is_available() and not allow_cpu:
+            raise RuntimeError("CUDA GPU not available and hardware.allow_CPU is False. Aborting.")
         
         # Initialize W&B if enabled
         if self.config['logging']['use_wandb']:
@@ -241,6 +283,7 @@ class RAFTTrainer:
         
         return output_dir
     
+    @weave.op()
     def test_model(self, model_path: str = None):
         """Test the RAFT fine-tuned model"""
         logger.info("\n" + "="*80)

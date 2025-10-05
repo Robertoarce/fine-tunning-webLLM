@@ -14,6 +14,7 @@ import os
 import re
 import torch
 import logging
+import weave
 from typing import List, Dict, Tuple, Optional
 from pathlib import Path
 
@@ -39,6 +40,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize Weave once per process (safe to call at import time)
+weave.init('roberto_arce_/RAFT')
 
 
 class RAGSystem:
@@ -95,19 +99,30 @@ class RAGSystem:
         self.documents = []
         self.chunks = []
 
+    @weave.op()
     def load_raft_model(self, model_path: str):
         """Load RAFT fine-tuned model"""
+        # Config option (read from env for simplicity in this module)
+        allow_cpu_env = os.environ.get("ALLOW_CPU", "false").lower() in ("1", "true", "yes")
+        if not torch.cuda.is_available() and not allow_cpu_env:
+            raise RuntimeError("CUDA GPU not available and ALLOW_CPU env var not set. Aborting.")
         logger.info(f"Loading RAFT model from {model_path}")
 
         self.raft_tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self.raft_model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-            device_map="auto" if torch.cuda.is_available() else None
-        )
+        if torch.cuda.is_available():
+            self.raft_model = AutoModelForCausalLM.from_pretrained(
+                model_path,
+                torch_dtype=torch.float16,
+                device_map={"": 0}
+            )
+        else:
+            self.raft_model = AutoModelForCausalLM.from_pretrained(
+                model_path
+            )
 
         logger.info("RAFT model loaded successfully!")
 
+    @weave.op()
     def load_and_chunk_documents(self) -> List[Dict[str, str]]:
         """
         Load source documents and split into chunks
@@ -164,6 +179,7 @@ class RAGSystem:
         logger.info(f"Created {len(chunks)} document chunks")
         return chunks
 
+    @weave.op()
     def create_vector_database(self):
         """Create vector database from document chunks"""
         if not self.chunks:
@@ -208,6 +224,7 @@ class RAGSystem:
         logger.info(
             f"✓ Vector database created with {len(self.chunks)} documents")
 
+    @weave.op()
     def retrieve(self, query: str, top_k: int = 3) -> List[Dict]:
         """
         Retrieve most relevant documents for a query
@@ -245,6 +262,7 @@ class RAGSystem:
 
         return retrieved_docs
 
+    @weave.op()
     def create_raft_prompt(self, query: str, documents: List[Dict]) -> str:
         """
         Create RAFT-style prompt with retrieved documents
@@ -272,6 +290,7 @@ Answer:"""
 
         return prompt
 
+    @weave.op()
     def generate_answer(
         self,
         prompt: str,
@@ -325,6 +344,7 @@ Answer:"""
 
         return answer
 
+    @weave.op()
     def query(
         self,
         question: str,

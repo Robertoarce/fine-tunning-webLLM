@@ -8,6 +8,10 @@ model:
   load_in_8bit: false  # Enable 8-bit quantization for memory efficiency
   load_in_4bit: false  # Enable 4-bit quantization for even more memory efficiency
 
+# Hardware Options
+hardware:
+  allow_CPU: false  # If true, training/inference may run on CPU when CUDA is unavailable
+
 # LoRA Configuration
 lora:
   enabled: true

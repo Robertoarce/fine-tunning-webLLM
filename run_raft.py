@@ -9,12 +9,16 @@ from pathlib import Path
 
 from raft_data_generator import RAFTDataGenerator
 from raft_fine_tuning import RAFTTrainer
+import weave
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Initialize Weave project tracking
+weave.init('roberto_arce_/RAFT')
 
 
 def main():

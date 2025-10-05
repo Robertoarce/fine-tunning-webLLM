@@ -1,0 +1,10 @@
+2025-10-05 - Weave instrumentation added
+- Added weave to requirements.txt
+- Initialized weave in run_raft.py, rag_system.py, raft_fine_tuning.py, raft_data_generator.py
+- Decorated key functions with @weave.op for data generation, training, and inference
+- Project name: roberto_arce_/RAFT
+
+2025-10-05 - Configurable CPU allowance
+- Added `hardware.allow_CPU` to `config.yaml` (default false)
+- `RAFTTrainer.train` now respects `hardware.allow_CPU` to permit CPU training when True
+- `RAGSystem.load_raft_model` respects `ALLOW_CPU` env var to permit CPU inference when True

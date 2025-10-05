@@ -15,9 +15,13 @@ import re
 from typing import List, Dict, Tuple
 import logging
 from pathlib import Path
+import weave
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize Weave for data generation steps
+weave.init('roberto_arce_/RAFT')
 
 
 class RAFTDataGenerator:
@@ -48,6 +52,7 @@ class RAFTDataGenerator:
         self.distractor_probability = distractor_probability
         self.chunks = []
         
+    @weave.op()
     def load_and_chunk_documents(self) -> List[str]:
         """Load source file and split into chunks"""
         logger.info(f"Loading documents from {self.source_file}")
@@ -78,6 +83,7 @@ class RAFTDataGenerator:
         logger.info(f"Created {len(self.chunks)} document chunks")
         return self.chunks
     
+    @weave.op()
     def generate_qa_pairs(self, chunk: str) -> List[Tuple[str, str]]:
         """
         Generate question-answer pairs from a chunk
@@ -152,6 +158,7 @@ class RAFTDataGenerator:
         
         return qa_pairs
     
+    @weave.op()
     def create_raft_example(
         self,
         question: str,
@@ -213,6 +220,7 @@ Answer:"""
         
         return training_example
     
+    @weave.op()
     def generate_dataset(self) -> List[Dict]:
         """Generate complete RAFT dataset"""
         logger.info("Generating RAFT dataset...")
@@ -236,6 +244,7 @@ Answer:"""
         logger.info(f"Generated {len(dataset)} RAFT training examples")
         return dataset
     
+    @weave.op()
     def save_dataset(self, dataset: List[Dict]):
         """Save dataset to JSONL file"""
         logger.info(f"Saving dataset to {self.output_file}")
@@ -253,6 +262,7 @@ Answer:"""
         logger.info(f"Examples with distractors: {with_distractors}")
         logger.info(f"Examples without distractors: {without_distractors}")
     
+    @weave.op()
     def generate_and_save(self) -> str:
         """Generate and save complete RAFT dataset"""
         dataset = self.generate_dataset()
