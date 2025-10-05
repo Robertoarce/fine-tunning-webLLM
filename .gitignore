@@ -2,3 +2,20 @@ raft_training_data.jsonl
 wandb/*
 *__pycache__/*
 .env
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+
+# Training artifacts
+finetuned_*/
+*.ckpt
+*.pt
+*.bin
+*.safetensors
+
+# IDE
+.vscode/
+.idea/
