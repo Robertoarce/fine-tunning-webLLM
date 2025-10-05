@@ -1,4 +1,4 @@
 raft_training_data.jsonl
 wandb/*
-__pycache__/*
+*__pycache__/*
 .env
