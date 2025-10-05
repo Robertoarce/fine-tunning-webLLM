@@ -7,18 +7,22 @@ RAFT is a fine-tuning technique that trains language models to answer questions 
 ## Key Concepts
 
 ### 1. Oracle Documents
+
 - **Definition**: The document(s) that contain the actual answer to the question
 - **Purpose**: The model learns to extract relevant information from these documents
 - **Example**: If asked "Where does Roberto work?", the oracle doc contains "Roberto works at Sanofi"
 
-### 2. Distractor Documents  
+### 2. Distractor Documents
+
 - **Definition**: Documents that are topically related but don't contain the answer
 - **Purpose**: Train the model to identify and ignore irrelevant information
 - **Example**: Including a document about Roberto's education when asking about his current job
 - **Benefit**: Makes the model more robust and reduces false answers
 
 ### 3. Training Format
+
 Each RAFT training example includes:
+
 ```
 Instruction: Use the following documents to answer the question.
 
@@ -32,13 +36,13 @@ Answer: [Expected answer based on oracle document]
 
 ## How RAFT Differs from Traditional Fine-tuning
 
-| Aspect | Traditional Fine-tuning | RAFT |
-|--------|------------------------|------|
-| **Input Format** | Text completion | Question + Multiple Documents |
-| **Learning Objective** | Generate fluent text | Extract answers from context |
-| **Context Handling** | Implicit | Explicit (documents provided) |
-| **Robustness** | May hallucinate | Learns to distinguish relevant/irrelevant info |
-| **Best Use Case** | Creative writing, text generation | Q&A, RAG systems, fact extraction |
+| Aspect                 | Traditional Fine-tuning           | RAFT                                           |
+| ---------------------- | --------------------------------- | ---------------------------------------------- |
+| **Input Format**       | Text completion                   | Question + Multiple Documents                  |
+| **Learning Objective** | Generate fluent text              | Extract answers from context                   |
+| **Context Handling**   | Implicit                          | Explicit (documents provided)                  |
+| **Robustness**         | May hallucinate                   | Learns to distinguish relevant/irrelevant info |
+| **Best Use Case**      | Creative writing, text generation | Q&A, RAG systems, fact extraction              |
 
 ## Implementation Details
 
@@ -47,11 +51,13 @@ Answer: [Expected answer based on oracle document]
 The `raft_data_generator.py` script:
 
 1. **Chunks the source document** into semantic sections
+
    - Uses headers as natural boundaries
    - Creates ~300-word chunks (configurable)
    - Filters out very small chunks
 
 2. **Generates questions** for each chunk
+
    - Factual questions about skills/technologies
    - Educational background queries
    - Professional experience questions
@@ -145,6 +151,7 @@ RAFTDataGenerator(
 ```
 
 **Recommendations:**
+
 - **chunk_size**: 200-400 words for balanced context
 - **num_distractors**: 2-4 for good robustness without overwhelming the model
 - **distractor_probability**: 0.4-0.6 for mixed training (some with, some without)
@@ -153,31 +160,34 @@ RAFTDataGenerator(
 
 ```yaml
 model:
-  name: "distilgpt2"  # Start with smaller model
-  max_length: 512      # Must fit question + documents + answer
-  fp16: true          # Enable for faster training
+  name: "distilgpt2" # Start with smaller model
+  max_length: 512 # Must fit question + documents + answer
+  fp16: true # Enable for faster training
 
 training:
-  num_epochs: 3-5     # RAFT converges relatively quickly
-  batch_size: 4-8     # Depends on GPU memory
+  num_epochs: 3-5 # RAFT converges relatively quickly
+  batch_size: 4-8 # Depends on GPU memory
   learning_rate: 5e-5 # Standard for GPT models
 ```
 
 ## Best Practices
 
 ### 1. Document Quality
+
 - ✅ Use clean, well-structured source documents
 - ✅ Include section headers for better chunking
 - ✅ Remove redundant information
 - ❌ Don't use documents with lots of noise/formatting issues
 
 ### 2. Question Generation
+
 - ✅ Generate diverse question types (factual, comparative, descriptive)
 - ✅ Ensure questions are answerable from the oracle document
 - ✅ Mix simple and complex questions
 - ❌ Don't make questions too vague or ambiguous
 
 ### 3. Distractor Selection
+
 - ✅ Use topically related but non-answering documents
 - ✅ Include varying numbers of distractors (0-4)
 - ✅ Shuffle document order randomly
@@ -185,6 +195,7 @@ training:
 - ❌ Don't use documents that also contain the answer
 
 ### 4. Training Strategy
+
 - ✅ Start with smaller models (distilgpt2, gpt2)
 - ✅ Use validation set to prevent overfitting
 - ✅ Monitor evaluation loss closely
@@ -194,10 +205,12 @@ training:
 ## Evaluation Metrics
 
 ### During Training
+
 - **Eval Loss**: Should steadily decrease
 - **Perplexity**: Lower is better (measures prediction confidence)
 
 ### Post Training
+
 - **Answer Accuracy**: Does it answer correctly from oracle docs?
 - **Distractor Resistance**: Does it ignore irrelevant documents?
 - **Refusal Rate**: Does it say "I don't know" when appropriate?
@@ -206,29 +219,37 @@ training:
 ## Common Issues & Solutions
 
 ### Issue 1: Model Always Returns Same Answer
+
 **Cause**: Overfitting or insufficient diversity in training data
-**Solution**: 
+**Solution**:
+
 - Add more diverse questions
 - Increase distractor_probability
 - Reduce num_epochs
 
 ### Issue 2: Model Ignores Context Documents
+
 **Cause**: Model hasn't learned to use context
 **Solution**:
+
 - Ensure training examples are properly formatted
 - Increase training epochs
 - Check that documents are actually included in prompts
 
 ### Issue 3: Model Doesn't Refuse to Answer
+
 **Cause**: Not enough examples where answer isn't present
 **Solution**:
+
 - Increase distractor_probability to 0.6-0.8
 - Add explicit training examples with no answer
 - Fine-tune the refusal prompt
 
 ### Issue 4: Out of Memory During Training
+
 **Cause**: max_length too large or batch_size too high
 **Solution**:
+
 - Reduce max_length to 256-384
 - Reduce batch_size to 2-4
 - Enable gradient_accumulation_steps
@@ -244,6 +265,7 @@ RAFT models work exceptionally well in RAG (Retrieval Augmented Generation) pipe
 4. **Answer**: Model extracts answer from retrieved documents
 
 Example RAG integration:
+
 ```python
 # 1. Retrieve documents
 retrieved_docs = vector_db.search(user_query, top_k=5)
@@ -261,29 +283,37 @@ answer = raft_model.generate_answer(prompt)
 ## Advanced Techniques
 
 ### 1. Multi-hop Reasoning
+
 Train with questions requiring multiple documents:
+
 ```
 Question: Compare Roberto's education and work experience
 Documents: [Education doc], [Work doc], [Skills doc]
 ```
 
 ### 2. Citation Generation
+
 Modify output format to include citations:
+
 ```
 Answer: Roberto works at Sanofi [Doc 1]. He has a Master's in Supply Chain [Doc 2].
 ```
 
 ### 3. Confidence Scoring
+
 Add confidence indicators:
+
 ```
 Answer: [HIGH CONFIDENCE] Roberto works at Sanofi based on Document 1.
 ```
 
 ### 4. Chain of Thought
+
 Include reasoning in answers:
+
 ```
-Answer: Looking at Document 1, I see Roberto works at Sanofi. 
-Document 2 mentions his role as Data Scientist. 
+Answer: Looking at Document 1, I see Roberto works at Sanofi.
+Document 2 mentions his role as Data Scientist.
 Therefore, Roberto works at Sanofi as a Data Scientist.
 ```
 
@@ -296,10 +326,10 @@ Therefore, Roberto works at Sanofi as a Data Scientist.
 ## Conclusion
 
 RAFT is a powerful technique for creating domain-specific Q&A models that:
+
 - Ground answers in provided context
-- Resist distractors and irrelevant information  
+- Resist distractors and irrelevant information
 - Reduce hallucination
 - Work seamlessly with RAG systems
 
 Start with the basic implementation provided, experiment with different configurations, and iterate based on your specific use case!
-
